@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101b33">
+  <title>Job Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <p class="side-label">YOUR SPACE</p>
+      <nav class="nav" aria-label="Main navigation">
+        <button class="nav-item active" id="newJobsBtn" type="button">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4m8-4v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg>
+          <span>Job board</span>
+          <span class="nav-arrow" aria-hidden="true">↗</span>
+        </button>
+      </nav>
+
+    </aside>
+
+    <main class="content">
+      <div id="message" class="empty-state" hidden></div>
+
+      <section id="results" class="results" hidden>
+        <div class="export-actions" aria-label="Download job data">
+          <span>Download job data</span>
+          <a class="export-button" href="{{ url_for('export_jobs_pdf') }}">PDF</a>
+          <details class="export-menu">
+            <summary class="export-button">Excel</summary>
+            <div class="export-menu-options">
+              <a href="{{ url_for('export_jobs_excel', scope='all') }}">All jobs</a>
+              <a href="{{ url_for('export_jobs_excel', scope='latest') }}">Latest since last Excel download</a>
+            </div>
+          </details>
+        </div>
+
+        <div class="group">
+          <div class="group-head">
+            <div class="group-marker kerala-marker" aria-hidden="true">K</div>
+            <div class="group-heading">
+              <p class="section-kicker">CLOSER TO HOME</p>
+              <h2>Kerala</h2>
+            </div>
+            <span id="keralaCount" class="count"></span>
+          </div>
+          <div id="keralaGrid" class="grid"></div>
+        </div>
+
+        <div class="group">
+          <div class="group-head">
+            <div class="group-marker india-marker" aria-hidden="true">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+            </div>
+            <div class="group-heading">
+              <p class="section-kicker">FURTHER AFIELD</p>
+              <h2>Across India</h2>
+            </div>
+            <span id="outsideCount" class="count"></span>
+          </div>
+          <div id="outsideGrid" class="grid"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
