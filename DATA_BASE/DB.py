@@ -1,5 +1,4 @@
 import os
-from django.contrib.gis import db
 import psycopg2
 from dotenv import load_dotenv
 
