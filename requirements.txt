@@ -1,0 +1,10 @@
+APScheduler
+apify-client
+Flask
+gunicorn
+openpyxl
+pandas
+psycopg2-binary
+python-dotenv
+reportlab
+requests
