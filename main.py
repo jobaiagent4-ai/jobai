@@ -81,7 +81,7 @@ def export_shops_excel():
 @app.route("/shops/fetch", methods=["POST"])
 def fetch_shops():
     if not os.getenv("APIFY_API_TOKEN"):
-        return jsonify(error="Set APIFY_API_TOKEN in the environment or .env file."), 503
+        return jsonify(error="Shop search is not configured."), 503
 
     try:
         fetched_shops = fetch_mobile_laptop_shops()
@@ -89,7 +89,7 @@ def fetch_shops():
         return jsonify(db.read_shops())
     except Exception:
         app.logger.exception("Failed to fetch India-wide shops from Apify.")
-        return jsonify(error="Unable to fetch shops from Apify."), 500
+        return jsonify(error="Unable to fetch shops."), 500
 
 
 def read_export_jobs():

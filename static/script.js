@@ -69,7 +69,6 @@ function createCard(job) {
       ${contact ? `<div class="meta-row">${ICONS.phone}<span>${contactLink ? `<a class="phone-link" href="${contactLink}">${esc(contact)}</a>` : esc(contact)}</span></div>` : ""}
     </div>
     <div class="card-foot">
-      <span class="source">${esc(job.source) || ""}</span>
       ${link ? `<a class="apply" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Apply ${ICONS.link}</a>` : ""}
     </div>
   `;
@@ -214,7 +213,7 @@ async function loadShops() {
 
 async function fetchShops() {
   fetchShopsBtn.disabled = true;
-  shopsStatus.textContent = "Searching Apify for mobile and laptop shops across India...";
+  shopsStatus.textContent = "Searching for mobile and laptop shops across India...";
   try {
     const response = await fetch("/shops/fetch", { method: "POST" });
     const data = await response.json();

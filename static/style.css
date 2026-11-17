@@ -197,7 +197,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .meta-row:first-child .icon { color: #806391; }
 .meta-row .icon + span { overflow-wrap: anywhere; }
 .card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 12px; border-top: 1px solid #eff0e9; }
-.source { overflow: hidden; color: #90988f; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .apply { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; padding: 8px 11px; border-radius: 9px; color: #f7f5e9; background: var(--plum); font-size: 10px; font-weight: 700; text-decoration: none; transition: background .2s ease, transform .2s ease; }
 .apply .icon { width: 13px; height: 13px; }
 .apply:hover { background: #57376d; transform: translateY(-1px); }
