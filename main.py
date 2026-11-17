@@ -286,8 +286,7 @@ def fetch_and_store_jobs():
     app.logger.info("Processed %d fetched jobs.", len(updated_df))
 
 
-if __name__ == "__main__":
-    scheduler = BackgroundScheduler()
+def configure_daily_job(scheduler):
     scheduler.add_job(
         fetch_and_store_jobs,
         trigger="cron",
@@ -297,7 +296,14 @@ if __name__ == "__main__":
         max_instances=1,
         coalesce=True,
     )
-    scheduler.start()
+
+
+scheduler = BackgroundScheduler()
+configure_daily_job(scheduler)
+scheduler.start()
+app.logger.info("Daily job fetch scheduler started for 00:00 (%s).", scheduler.timezone)
+
+if __name__ == "__main__":
     try:
         app.run(debug=True, use_reloader=False)
     finally:
