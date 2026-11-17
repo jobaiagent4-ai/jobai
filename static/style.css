@@ -27,7 +27,7 @@ body {
 }
 
 button, a { font: inherit; }
-button:focus-visible, a:focus-visible { outline: 3px solid var(--rose); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--rose); outline-offset: 3px; }
 
 .app-shell { min-height: 100vh; }
 
@@ -120,13 +120,38 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--rose); outline-
 .empty-state.error strong { color: #8d3424; }
 
 .results[hidden] { display: none; }
+.shops-view[hidden] { display: none; }
+.shops-header { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 10px; }
+.shops-header h2 { margin: 0; font-family: "Manrope", sans-serif; font-size: 22px; letter-spacing: -.5px; }
+.shops-header-actions { display: flex; align-items: center; gap: 12px; }
+.shops-excel-download { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; color: var(--plum); background: transparent; text-decoration: none; cursor: pointer; }
+.shops-excel-download[hidden] { display: none; }
+.shops-excel-download:hover { color: #684879; background: transparent; }
+.shops-excel-download .icon { width: 20px; height: 20px; }
+.fetch-button { border-color: var(--plum); color: white; background: var(--plum); }
+.fetch-button:hover { color: white; background: #57376d; }
+.fetch-button:disabled { cursor: wait; opacity: .65; transform: none; }
+.shops-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.shops-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 12px; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.shop-card { display: flex; min-height: 150px; flex-direction: column; gap: 13px; padding: 18px 19px; border: 1px solid #e8e8de; border-radius: 16px; background: var(--surface); box-shadow: 0 3px 10px rgba(24, 45, 34, .025); }
+.shop-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.shop-card h3 { margin: 0; font-family: "Manrope", sans-serif; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.shop-region { flex: 0 0 auto; padding: 5px 8px; border-radius: 99px; font-size: 9px; font-weight: 700; }
+.shop-region.kerala { color: #684879; background: #f2eaf7; }
+.shop-region.outside { color: #b95e43; background: #fff0e9; }
+.shop-card .meta { margin-top: auto; }
+.shop-card .meta-row { align-items: flex-start; }
+.shop-empty { grid-column: 1 / -1; margin: 0; padding: 20px; border: 1px dashed var(--line); border-radius: 13px; color: var(--muted); background: rgba(255, 254, 250, .6); font-size: 12px; }
 .export-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin: 0 0 24px; color: var(--muted); font-size: 11px; }
 .export-button { display: inline-flex; align-items: center; padding: 8px 12px; border: 1px solid #d9c9e6; border-radius: 9px; color: var(--plum); background: var(--surface); font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; transition: background .2s ease, transform .2s ease; }
+.export-button[hidden] { display: none; }
 .export-button:hover { background: #f2eaf7; transform: translateY(-1px); }
 .export-menu { position: relative; }
 .export-menu summary { list-style: none; }
 .export-menu summary::-webkit-details-marker { display: none; }
 .export-menu summary::after { margin-left: 7px; content: "▾"; }
+.shops-excel-menu summary::after { content: none; }
 .export-menu-options { position: absolute; top: calc(100% + 6px); right: 0; z-index: 3; display: grid; min-width: 190px; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
 .export-menu:not([open]) .export-menu-options { display: none; }
 .export-menu-options a { padding: 10px 12px; color: var(--ink); font-size: 11px; text-decoration: none; white-space: nowrap; }
@@ -166,6 +191,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--rose); outline-
 .card-title { margin: 0; font-family: "Manrope", sans-serif; font-size: 17px; font-weight: 700; letter-spacing: -.35px; line-height: 1.35; }
 .meta { display: flex; flex-direction: column; gap: 8px; }
 .meta-row { display: flex; align-items: center; gap: 9px; color: #778178; font-size: 11px; line-height: 1.4; }
+.phone-link { color: inherit; text-decoration: underline; text-decoration-color: #c5b2d2; text-underline-offset: 2px; }
+.phone-link:hover { color: var(--plum); }
 .meta-row .icon { color: #98a294; }
 .meta-row:first-child .icon { color: #806391; }
 .meta-row .icon + span { overflow-wrap: anywhere; }
@@ -188,6 +215,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--rose); outline-
   .nav-item .icon { width: 17px; height: 17px; }
   .content { width: 100%; min-height: calc(100vh - 60px); margin: 0; padding: 27px 22px 20px; }
   .export-actions { flex-wrap: wrap; margin-bottom: 20px; }
+  .shops-header { align-items: flex-start; }
 }
 
 @media (max-width: 520px) {
@@ -195,6 +223,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--rose); outline-
   .nav-item { gap: 7px; padding: 8px 9px; font-size: 11px; }
   .content { padding: 22px 15px 17px; }
   .export-actions { justify-content: flex-start; }
+  .shops-header { flex-direction: column; }
   .group { margin-bottom: 29px; }
   .grid { grid-template-columns: 1fr; gap: 11px; }
   .card { min-height: 230px; padding: 16px; }

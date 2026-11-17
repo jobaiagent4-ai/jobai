@@ -8,8 +8,14 @@ const ICONS = {
 };
 
 const newJobsBtn = document.getElementById("newJobsBtn");
+const shopsBtn = document.getElementById("shopsBtn");
+const fetchShopsBtn = document.getElementById("fetchShopsBtn");
 const message = document.getElementById("message");
 const results = document.getElementById("results");
+const shopsView = document.getElementById("shopsView");
+const shopsStatus = document.getElementById("shopsStatus");
+const shopsExcelBtn = document.getElementById("shopsExcelBtn");
+let activeView = "jobs";
 
 // Escape text so job data can never inject HTML
 function esc(value) {
@@ -34,11 +40,17 @@ function safeUrl(url) {
   return typeof url === "string" && /^https?:\/\//i.test(url) ? url : null;
 }
 
+function safePhoneUrl(phone) {
+  const number = String(phone ?? "").trim().replace(/[\s().-]/g, "");
+  return /^\+?\d{5,15}$/.test(number) ? "tel:" + number : null;
+}
+
 function createCard(job) {
   const isKerala = job.region === "Kerala";
   const location = [job.city, job.state].filter(Boolean).join(", ") || "Location not specified";
   const link = safeUrl(job.apply_link);
   const contact = job.contact == null ? "" : String(job.contact).trim();
+  const contactLink = safePhoneUrl(contact);
   const region = isKerala ? "Kerala" : "Across India";
 
   const card = document.createElement("article");
@@ -54,7 +66,7 @@ function createCard(job) {
       <div class="meta-row">${ICONS.pin}<span>${esc(location)}</span></div>
       <div class="meta-row">${ICONS.briefcase}<span>${esc(formatType(job.type))}</span></div>
       <div class="meta-row">${ICONS.clock}<span>${esc(formatDate(job.posted))}</span></div>
-      ${contact ? `<div class="meta-row">${ICONS.phone}<span>${esc(contact)}</span></div>` : ""}
+      ${contact ? `<div class="meta-row">${ICONS.phone}<span>${contactLink ? `<a class="phone-link" href="${contactLink}">${esc(contact)}</a>` : esc(contact)}</span></div>` : ""}
     </div>
     <div class="card-foot">
       <span class="source">${esc(job.source) || ""}</span>
@@ -92,14 +104,18 @@ function uniqueJobsByTitle(jobs) {
 
 function showMessage(html, isError = false) {
   results.hidden = true;
+  shopsView.hidden = true;
   message.hidden = false;
   message.className = "empty-state" + (isError ? " error" : "");
   message.innerHTML = html;
 }
 
 async function loadJobs() {
+  activeView = "jobs";
   newJobsBtn.classList.add("active");
+  shopsBtn.classList.remove("active");
   message.hidden = true;
+  shopsView.hidden = true;
   results.hidden = true;
 
   try {
@@ -107,6 +123,7 @@ async function loadJobs() {
     if (!response.ok) throw new Error(await response.text());
 
     const jobs = await response.json();
+    if (activeView !== "jobs") return;
     jobs.sort((a, b) => new Date(b.posted || 0) - new Date(a.posted || 0));
     const uniqueJobs = uniqueJobsByTitle(jobs);
 
@@ -116,9 +133,102 @@ async function loadJobs() {
     message.hidden = true;
     results.hidden = false;
   } catch (err) {
-    showMessage("<p>" + esc(err.message || "Could not load jobs.") + "</p>", true);
+    if (activeView === "jobs") {
+      showMessage("<p>" + esc(err.message || "Could not load jobs.") + "</p>", true);
+    }
+  }
+}
+
+function fillShopGroup(gridId, countId, shops, regionLabel) {
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = "";
+  document.getElementById(countId).textContent =
+    shops.length + (shops.length === 1 ? " shop" : " shops");
+
+  if (shops.length === 0) {
+    grid.innerHTML =
+      '<p class="shop-empty">No ' + regionLabel + ' shops found yet.</p>';
+    return;
+  }
+
+  shops.forEach(shop => {
+    const contactLink = safePhoneUrl(shop.contact);
+    const card = document.createElement("article");
+    card.className = "shop-card";
+    card.innerHTML = `
+      <div class="shop-card-heading">
+        <h3>${esc(shop.name) || "Unnamed shop"}</h3>
+        <span class="shop-region ${shop.region === "Kerala" ? "kerala" : "outside"}">${regionLabel}</span>
+      </div>
+      <div class="meta">
+        <div class="meta-row">${ICONS.pin}<span>${esc(shop.location) || "Location not available"}</span></div>
+        <div class="meta-row">${ICONS.phone}<span>${contactLink ? `<a class="phone-link" href="${contactLink}">${esc(shop.contact)}</a>` : esc(shop.contact) || "Contact not available"}</span></div>
+        ${shop.category ? `<div class="meta-row">${ICONS.building}<span>${esc(shop.category)}</span></div>` : ""}
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function fillShops(shops) {
+  fillShopGroup(
+    "keralaShopsGrid",
+    "keralaShopsCount",
+    shops.filter(shop => shop.region === "Kerala"),
+    "Kerala"
+  );
+  fillShopGroup(
+    "outsideShopsGrid",
+    "outsideShopsCount",
+    shops.filter(shop => shop.region !== "Kerala"),
+    "outside Kerala"
+  );
+}
+
+async function loadShops() {
+  activeView = "shops";
+  newJobsBtn.classList.remove("active");
+  shopsBtn.classList.add("active");
+  message.hidden = true;
+  results.hidden = true;
+  shopsView.hidden = false;
+  fetchShopsBtn.hidden = true;
+  shopsExcelBtn.hidden = true;
+  shopsStatus.textContent = "Loading saved shops...";
+
+  try {
+    const response = await fetch("/shops");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not load shops.");
+    if (activeView !== "shops") return;
+    fillShops(data);
+    shopsStatus.textContent = data.length + (data.length === 1 ? " shop saved" : " shops saved");
+    fetchShopsBtn.hidden = false;
+    shopsExcelBtn.hidden = false;
+  } catch (err) {
+    if (activeView !== "shops") return;
+    shopsStatus.textContent = "";
+    showMessage("<p>" + esc(err.message || "Could not load shops.") + "</p>", true);
+  }
+}
+
+async function fetchShops() {
+  fetchShopsBtn.disabled = true;
+  shopsStatus.textContent = "Searching Apify for mobile and laptop shops across India...";
+  try {
+    const response = await fetch("/shops/fetch", { method: "POST" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not fetch shops.");
+    fillShops(data);
+    shopsStatus.textContent = data.length + (data.length === 1 ? " shop saved" : " shops saved");
+  } catch (err) {
+    shopsStatus.textContent = err.message || "Could not fetch shops.";
+  } finally {
+    fetchShopsBtn.disabled = false;
   }
 }
 
 newJobsBtn.addEventListener("click", loadJobs);
+shopsBtn.addEventListener("click", loadShops);
+fetchShopsBtn.addEventListener("click", fetchShops);
 loadJobs();

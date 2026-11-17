@@ -45,4 +45,71 @@ class Database:
         conn.commit()
         conn.close()
 
+    def _ensure_shopdata_table(self, cur):
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS shopdata (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                location TEXT NOT NULL,
+                contact TEXT NOT NULL,
+                region TEXT NOT NULL DEFAULT 'Outside Kerala',
+                category TEXT,
+                UNIQUE (name, location, contact)
+            )
+        """)
+        cur.execute(
+            "ALTER TABLE shopdata ADD COLUMN IF NOT EXISTS region TEXT"
+        )
+        cur.execute("""
+            UPDATE shopdata
+            SET region = CASE
+                WHEN location ILIKE '%Kerala%' THEN 'Kerala'
+                ELSE 'Outside Kerala'
+            END
+            WHERE region IS NULL
+        """)
+
+    def read_shops(self):
+        conn = self._get_conn()
+        try:
+            cur = conn.cursor()
+            self._ensure_shopdata_table(cur)
+            cur.execute(
+                "SELECT name, location, contact, region, category "
+                "FROM shopdata ORDER BY name"
+            )
+            columns = [column[0] for column in cur.description]
+            rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+            conn.commit()
+            return rows
+        finally:
+            conn.close()
+
+    def add_shops(self, shops):
+        conn = self._get_conn()
+        try:
+            cur = conn.cursor()
+            self._ensure_shopdata_table(cur)
+            for shop in shops:
+                cur.execute(
+                    """
+                    INSERT INTO shopdata (name, location, contact, region, category)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (name, location, contact) DO NOTHING
+                    """,
+                    (
+                        shop["name"],
+                        shop["location"],
+                        shop["contact"],
+                        shop["region"],
+                        shop.get("category"),
+                    ),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
 db = Database()

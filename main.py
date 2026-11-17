@@ -23,7 +23,7 @@ from reportlab.platypus import (
 )
 
 from JOB_SCRAP.jsearch import fetch_jobs
-from JOB_SCRAP.apify import get_contact as lookup_contact
+from JOB_SCRAP.apify import fetch_mobile_laptop_shops, get_contact as lookup_contact
 from DATA_BASE.DB import db
 import pandas as pd
 
@@ -44,6 +44,52 @@ def jobs():
         return jsonify(jobs_list)
     except Exception as e:
         return f"Error fetching jobs: {e}", 500
+
+
+@app.route("/shops", methods=["GET"])
+def shops():
+    try:
+        return jsonify(db.read_shops())
+    except Exception:
+        app.logger.exception("Failed to read shop data.")
+        return jsonify(error="Unable to load shops."), 500
+
+
+@app.route("/shops/export/excel")
+def export_shops_excel():
+    try:
+        shops_list = db.read_shops()
+        columns = ["name", "location", "contact", "region", "category"]
+        shops_df = pd.DataFrame(shops_list, columns=columns)
+        for column in shops_df.columns:
+            shops_df[column] = shops_df[column].map(prepare_excel_value)
+
+        output = BytesIO()
+        shops_df.to_excel(output, index=False, sheet_name="Shops")
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="shop_data.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception:
+        app.logger.exception("Failed to export shops to Excel.")
+        return jsonify(error="Unable to export shops to Excel."), 500
+
+
+@app.route("/shops/fetch", methods=["POST"])
+def fetch_shops():
+    if not os.getenv("APIFY_API_TOKEN"):
+        return jsonify(error="Set APIFY_API_TOKEN in the environment or .env file."), 503
+
+    try:
+        fetched_shops = fetch_mobile_laptop_shops()
+        db.add_shops(fetched_shops)
+        return jsonify(db.read_shops())
+    except Exception:
+        app.logger.exception("Failed to fetch India-wide shops from Apify.")
+        return jsonify(error="Unable to fetch shops from Apify."), 500
 
 
 def read_export_jobs():

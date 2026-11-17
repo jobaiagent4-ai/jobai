@@ -20,6 +20,11 @@
           <span>Job board</span>
           <span class="nav-arrow" aria-hidden="true">↗</span>
         </button>
+        <button class="nav-item" id="shopsBtn" type="button">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h18l-1.5-6h-15L3 10Z"/><path d="M5 10v10h14V10M9 20v-6h6v6"/><path d="M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/></svg>
+          <span>Shops and details</span>
+          <span class="nav-arrow" aria-hidden="true">↗</span>
+        </button>
       </nav>
 
     </aside>
@@ -27,12 +32,54 @@
     <main class="content">
       <div id="message" class="empty-state" hidden></div>
 
+      <section id="shopsView" class="shops-view" hidden>
+        <div class="shops-header">
+          <div class="group-heading">
+            <p class="section-kicker">INDIA BUSINESS DIRECTORY</p>
+            <h2>Shops and details</h2>
+          </div>
+          <div class="shops-header-actions">
+            <button id="fetchShopsBtn" class="export-button fetch-button" type="button" hidden>Fetch new</button>
+            <a id="shopsExcelBtn" class="shops-excel-download" href="{{ url_for('export_shops_excel') }}" aria-label="Download shops as Excel" title="Download shops as Excel" hidden>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="shops-toolbar">
+          <p id="shopsStatus" class="shops-status" aria-live="polite"></p>
+        </div>
+        <div class="group">
+          <div class="group-head">
+            <div class="group-marker kerala-marker" aria-hidden="true">K</div>
+            <div class="group-heading">
+              <p class="section-kicker">CLOSER TO HOME</p>
+              <h2>Kerala shops</h2>
+            </div>
+            <span id="keralaShopsCount" class="count"></span>
+          </div>
+          <div id="keralaShopsGrid" class="shop-grid"></div>
+        </div>
+        <div class="group">
+          <div class="group-head">
+            <div class="group-marker india-marker" aria-hidden="true">IN</div>
+            <div class="group-heading">
+              <p class="section-kicker">REST OF INDIA</p>
+              <h2>Outside Kerala</h2>
+            </div>
+            <span id="outsideShopsCount" class="count"></span>
+          </div>
+          <div id="outsideShopsGrid" class="shop-grid"></div>
+        </div>
+      </section>
+
       <section id="results" class="results" hidden>
         <div class="export-actions" aria-label="Download job data">
           <span>Download job data</span>
           <a class="export-button" href="{{ url_for('export_jobs_pdf') }}">PDF</a>
-          <details class="export-menu">
-            <summary class="export-button">Excel</summary>
+          <details class="export-menu shops-excel-menu">
+            <summary class="shops-excel-download" aria-label="Choose job Excel download" title="Download jobs as Excel">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>
+            </summary>
             <div class="export-menu-options">
               <a href="{{ url_for('export_jobs_excel', scope='all') }}">All jobs</a>
               <a href="{{ url_for('export_jobs_excel', scope='latest') }}">Latest since last Excel download</a>
