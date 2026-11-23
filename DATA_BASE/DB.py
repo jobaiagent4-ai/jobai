@@ -1,9 +1,22 @@
 import os
+from difflib import SequenceMatcher
+
 import psycopg2
 from dotenv import load_dotenv
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("DATA_BASE_URL")
+
+
+def _normalize_shop_name(value):
+    normalized_value = (value or "").casefold()
+    return "".join(
+        character for character in normalized_value if character.isalnum()
+    )
+
+
+def _normalize_contact(value):
+    return "".join(character for character in (value or "") if character.isdigit())
 
 
 class Database:
@@ -69,17 +82,55 @@ class Database:
             WHERE region IS NULL
         """)
 
+    def _ensure_oldata_table(self, cur):
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS oldata (
+                id SERIAL PRIMARY KEY,
+                shop_name TEXT NOT NULL,
+                contact TEXT NOT NULL
+            )
+        """)
+
     def read_shops(self):
         conn = self._get_conn()
         try:
             cur = conn.cursor()
             self._ensure_shopdata_table(cur)
+            self._ensure_oldata_table(cur)
             cur.execute(
                 "SELECT name, location, contact, region, category "
                 "FROM shopdata ORDER BY name"
             )
             columns = [column[0] for column in cur.description]
-            rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+            shops = [dict(zip(columns, row)) for row in cur.fetchall()]
+            cur.execute("SELECT shop_name, contact FROM oldata")
+            old_shops = cur.fetchall()
+
+            old_names = {
+                normalized
+                for name, _contact in old_shops
+                if (normalized := _normalize_shop_name(name))
+            }
+            old_contacts = {
+                normalized
+                for _name, contact in old_shops
+                if (normalized := _normalize_contact(contact))
+            }
+
+            rows = []
+            for shop in shops:
+                shop_name = _normalize_shop_name(shop["name"])
+                shop_contact = _normalize_contact(shop["contact"])
+                name_matches = bool(shop_name) and any(
+                    SequenceMatcher(
+                        None, shop_name, old_name, autojunk=False
+                    ).ratio() > 0.8
+                    for old_name in old_names
+                )
+                contact_matches = bool(shop_contact and shop_contact in old_contacts)
+                if not name_matches and not contact_matches:
+                    rows.append(shop)
+
             conn.commit()
             return rows
         finally:
@@ -105,6 +156,25 @@ class Database:
                         shop.get("category"),
                     ),
                 )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def add_oldata(self, records):
+        conn = self._get_conn()
+        try:
+            cur = conn.cursor()
+            self._ensure_oldata_table(cur)
+            cur.executemany(
+                "INSERT INTO oldata (shop_name, contact) VALUES (%s, %s)",
+                [
+                    (record["shop_name"], record["contact"])
+                    for record in records
+                ],
+            )
             conn.commit()
         except Exception:
             conn.rollback()

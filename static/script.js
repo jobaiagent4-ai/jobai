@@ -15,6 +15,9 @@ const results = document.getElementById("results");
 const shopsView = document.getElementById("shopsView");
 const shopsStatus = document.getElementById("shopsStatus");
 const shopsExcelBtn = document.getElementById("shopsExcelBtn");
+const oldataUploadForm = document.getElementById("oldataUploadForm");
+const oldataCsvFile = document.getElementById("oldataCsvFile");
+const oldataUploadBtn = document.getElementById("oldataUploadBtn");
 let activeView = "jobs";
 
 // Escape text so job data can never inject HTML
@@ -227,7 +230,40 @@ async function fetchShops() {
   }
 }
 
+function openOldataCsvPicker() {
+  oldataCsvFile.value = "";
+  oldataCsvFile.click();
+}
+
+async function uploadOldataCsv() {
+  if (!oldataCsvFile.files.length) {
+    shopsStatus.textContent = "Choose a CSV file to upload.";
+    return;
+  }
+
+  const formData = new FormData(oldataUploadForm);
+  oldataUploadBtn.disabled = true;
+  shopsStatus.textContent = "Uploading CSV...";
+  try {
+    const response = await fetch("/oldata/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not upload the CSV.");
+    shopsStatus.textContent =
+      data.imported + (data.imported === 1 ? " row uploaded to oldata." : " rows uploaded to oldata.");
+    oldataUploadForm.reset();
+  } catch (err) {
+    shopsStatus.textContent = err.message || "Could not upload the CSV.";
+  } finally {
+    oldataUploadBtn.disabled = false;
+  }
+}
+
 newJobsBtn.addEventListener("click", loadJobs);
 shopsBtn.addEventListener("click", loadShops);
 fetchShopsBtn.addEventListener("click", fetchShops);
+oldataUploadBtn.addEventListener("click", openOldataCsvPicker);
+oldataCsvFile.addEventListener("change", uploadOldataCsv);
 loadJobs();

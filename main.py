@@ -3,7 +3,8 @@ import json
 import os
 import tempfile
 import threading
-from io import BytesIO
+import csv
+from io import BytesIO, StringIO
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
 
@@ -28,6 +29,7 @@ from DATA_BASE.DB import db
 import pandas as pd
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 EXCEL_EXPORT_STATE_PATH = os.path.join(app.instance_path, "excel_export_state.json")
 excel_export_lock = threading.Lock()
 
@@ -53,6 +55,61 @@ def shops():
     except Exception:
         app.logger.exception("Failed to read shop data.")
         return jsonify(error="Unable to load shops."), 500
+
+
+@app.route("/oldata/upload", methods=["POST"])
+def upload_oldata_csv():
+    uploaded_file = request.files.get("file")
+    if uploaded_file is None or not uploaded_file.filename:
+        return jsonify(error="Choose a CSV file to upload."), 400
+    if not uploaded_file.filename.lower().endswith(".csv"):
+        return jsonify(error="Only CSV files are supported."), 400
+
+    try:
+        csv_text = uploaded_file.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return jsonify(error="The CSV must use UTF-8 encoding."), 400
+
+    reader = csv.DictReader(StringIO(csv_text), strict=True)
+    if not reader.fieldnames:
+        return jsonify(error="The CSV must include shop_name and contact headers."), 400
+
+    headers = [header.strip().lower() if header else "" for header in reader.fieldnames]
+    if len(headers) != len(set(headers)):
+        return jsonify(error="The CSV contains duplicate column headers."), 400
+    if not {"shop_name", "contact"}.issubset(headers):
+        return jsonify(error="The CSV must include shop_name and contact headers."), 400
+    reader.fieldnames = headers
+
+    records = []
+    try:
+        for row_number, row in enumerate(reader, start=2):
+            shop_name = (row.get("shop_name") or "").strip()
+            contact = (row.get("contact") or "").strip()
+            if not shop_name and not contact:
+                continue
+            if not shop_name or not contact:
+                return jsonify(
+                    error=f"Row {row_number} must include both shop_name and contact."
+                ), 400
+            records.append({"shop_name": shop_name, "contact": contact})
+    except csv.Error:
+        return jsonify(error="The CSV could not be parsed."), 400
+
+    if not records:
+        return jsonify(error="The CSV contains no data rows."), 400
+
+    try:
+        db.add_oldata(records)
+        return jsonify(imported=len(records))
+    except Exception:
+        app.logger.exception("Failed to import CSV data into oldata.")
+        return jsonify(error="Unable to save the CSV data."), 500
+
+
+@app.errorhandler(413)
+def request_entity_too_large(_error):
+    return jsonify(error="The CSV file must be 5 MB or smaller."), 413
 
 
 @app.route("/shops/export/excel")
