@@ -62,6 +62,9 @@ def fetch_mobile_laptop_shops():
         for result in client.dataset(run.default_dataset_id).iterate_items():
             name = result.get("title") or result.get("name")
             contact = result.get("phone") or result.get("phoneUnformatted")
+            contact2 = result.get("phoneUnformatted")
+            if contact2 and contact2 == contact:
+                contact2 = None
             location = (
                 result.get("address")
                 or result.get("formattedAddress")
@@ -95,6 +98,7 @@ def fetch_mobile_laptop_shops():
                     "name": str(name).strip(),
                     "location": str(location).strip(),
                     "contact": str(contact).strip(),
+                    "contact2": str(contact2).strip() if contact2 else None,
                     "region": region,
                     "category": result.get("categoryName") or result.get("category"),
                 }

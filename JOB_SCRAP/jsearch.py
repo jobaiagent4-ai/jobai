@@ -45,6 +45,8 @@ def to_rows(data):
             "job_id": job.get("job_id"),
             "title": job.get("job_title"),
             "company": job.get("employer_name"),
+            "contact": None,
+            "contact2": None,
             "city": job.get("job_city"),
             "state": job.get("job_state"),
             "type": job.get("job_employment_type"),

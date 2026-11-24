@@ -31,19 +31,22 @@ class Database:
     def read_jobs(self):
         conn = self._get_conn()
         cur = conn.cursor()
+        cur.execute("ALTER TABLE new_data ADD COLUMN IF NOT EXISTS contact2 TEXT")
         cur.execute("SELECT * FROM new_data")
         columns = [column[0] for column in cur.description]
         rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+        conn.commit()
         conn.close()
         return rows
 
     def add_job(self, job):
         conn = self._get_conn()
         cur = conn.cursor()
+        cur.execute("ALTER TABLE new_data ADD COLUMN IF NOT EXISTS contact2 TEXT")
         cur.execute("""
             INSERT INTO new_data
-            (region, job_id, title, company, contact, city, state, type, posted, source, apply_link)
-            SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            (region, job_id, title, company, contact, contact2, city, state, type, posted, source, apply_link)
+            SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             WHERE NOT EXISTS (
                 SELECT 1 FROM new_data
                 WHERE title = %s AND company = %s
@@ -51,7 +54,7 @@ class Database:
             ON CONFLICT (job_id) DO NOTHING
         """, (
             job["region"], job["job_id"], job["title"], job["company"],
-            job["contact"], job["city"], job["state"], job["type"],
+            job.get("contact"), job.get("contact2"), job["city"], job["state"], job["type"],
             job["posted"], job["source"], job["apply_link"],
             job["title"], job["company"],
         ))
@@ -73,6 +76,9 @@ class Database:
         cur.execute(
             "ALTER TABLE shopdata ADD COLUMN IF NOT EXISTS region TEXT"
         )
+        cur.execute(
+            "ALTER TABLE shopdata ADD COLUMN IF NOT EXISTS contact2 TEXT"
+        )
         cur.execute("""
             UPDATE shopdata
             SET region = CASE
@@ -90,6 +96,9 @@ class Database:
                 contact TEXT NOT NULL
             )
         """)
+        cur.execute(
+            "ALTER TABLE oldata ADD COLUMN IF NOT EXISTS contact2 TEXT"
+        )
 
     def read_shops(self):
         conn = self._get_conn()
@@ -98,36 +107,47 @@ class Database:
             self._ensure_shopdata_table(cur)
             self._ensure_oldata_table(cur)
             cur.execute(
-                "SELECT name, location, contact, region, category "
+                "SELECT name, location, contact, contact2, region, category "
                 "FROM shopdata ORDER BY name"
             )
             columns = [column[0] for column in cur.description]
             shops = [dict(zip(columns, row)) for row in cur.fetchall()]
-            cur.execute("SELECT shop_name, contact FROM oldata")
+            cur.execute("SELECT shop_name, contact, contact2 FROM oldata")
             old_shops = cur.fetchall()
 
             old_names = {
                 normalized
-                for name, _contact in old_shops
+                for name, _contact, _contact2 in old_shops
                 if (normalized := _normalize_shop_name(name))
             }
             old_contacts = {
                 normalized
-                for _name, contact in old_shops
-                if (normalized := _normalize_contact(contact))
+                for _name, contact, contact2 in old_shops
+                for normalized in (
+                    _normalize_contact(contact),
+                    _normalize_contact(contact2),
+                )
+                if normalized
             }
 
             rows = []
             for shop in shops:
                 shop_name = _normalize_shop_name(shop["name"])
-                shop_contact = _normalize_contact(shop["contact"])
+                shop_contacts = {
+                    normalized
+                    for normalized in (
+                        _normalize_contact(shop["contact"]),
+                        _normalize_contact(shop.get("contact2")),
+                    )
+                    if normalized
+                }
                 name_matches = bool(shop_name) and any(
                     SequenceMatcher(
                         None, shop_name, old_name, autojunk=False
                     ).ratio() > 0.8
                     for old_name in old_names
                 )
-                contact_matches = bool(shop_contact and shop_contact in old_contacts)
+                contact_matches = bool(shop_contacts.intersection(old_contacts))
                 if not name_matches and not contact_matches:
                     rows.append(shop)
 
@@ -144,14 +164,15 @@ class Database:
             for shop in shops:
                 cur.execute(
                     """
-                    INSERT INTO shopdata (name, location, contact, region, category)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO shopdata (name, location, contact, contact2, region, category)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (name, location, contact) DO NOTHING
                     """,
                     (
                         shop["name"],
                         shop["location"],
                         shop["contact"],
+                        shop.get("contact2"),
                         shop["region"],
                         shop.get("category"),
                     ),
@@ -169,9 +190,9 @@ class Database:
             cur = conn.cursor()
             self._ensure_oldata_table(cur)
             cur.executemany(
-                "INSERT INTO oldata (shop_name, contact) VALUES (%s, %s)",
+                "INSERT INTO oldata (shop_name, contact, contact2) VALUES (%s, %s, %s)",
                 [
-                    (record["shop_name"], record["contact"])
+                    (record["shop_name"], record["contact"], record.get("contact2"))
                     for record in records
                 ],
             )

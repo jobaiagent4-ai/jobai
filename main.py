@@ -58,65 +58,94 @@ def shops():
 
 
 @app.route("/oldata/upload", methods=["POST"])
-def upload_oldata_csv():
+def upload_oldata():
     uploaded_file = request.files.get("file")
     if uploaded_file is None or not uploaded_file.filename:
-        return jsonify(error="Choose a CSV file to upload."), 400
-    if not uploaded_file.filename.lower().endswith(".csv"):
-        return jsonify(error="Only CSV files are supported."), 400
+        return jsonify(error="Choose a CSV or Excel file to upload."), 400
 
-    try:
-        csv_text = uploaded_file.read().decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return jsonify(error="The CSV must use UTF-8 encoding."), 400
+    filename = uploaded_file.filename.lower()
+    if filename.endswith(".csv"):
+        try:
+            csv_text = uploaded_file.read().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return jsonify(error="The CSV must use UTF-8 encoding."), 400
 
-    reader = csv.DictReader(StringIO(csv_text), strict=True)
-    if not reader.fieldnames:
-        return jsonify(error="The CSV must include shop_name and contact headers."), 400
+        reader = csv.DictReader(StringIO(csv_text), strict=True)
+        if not reader.fieldnames:
+            return jsonify(error="The file must include shop_name and contact headers."), 400
+        headers = [header.strip().lower() if header else "" for header in reader.fieldnames]
+        if len(headers) != len(set(headers)):
+            return jsonify(error="The CSV contains duplicate column headers."), 400
+        if not {"shop_name", "contact"}.issubset(headers):
+            return jsonify(error="The CSV must include shop_name and contact headers."), 400
+        reader.fieldnames = headers
 
-    headers = [header.strip().lower() if header else "" for header in reader.fieldnames]
-    if len(headers) != len(set(headers)):
-        return jsonify(error="The CSV contains duplicate column headers."), 400
-    if not {"shop_name", "contact"}.issubset(headers):
-        return jsonify(error="The CSV must include shop_name and contact headers."), 400
-    reader.fieldnames = headers
+        try:
+            rows = list(reader)
+        except csv.Error:
+            return jsonify(error="The CSV could not be parsed."), 400
+        row_offset = 2
+    elif filename.endswith(".xlsx"):
+        try:
+            excel = pd.read_excel(
+                BytesIO(uploaded_file.read()),
+                sheet_name=0,
+                dtype=str,
+                keep_default_na=False,
+            )
+        except Exception:
+            app.logger.exception("Failed to parse uploaded Excel data.")
+            return jsonify(error="The Excel file could not be parsed."), 400
+
+        headers = [str(header).strip().lower() for header in excel.columns]
+        if len(headers) != len(set(headers)):
+            return jsonify(error="The Excel file contains duplicate column headers."), 400
+        if not {"shop_name", "contact"}.issubset(headers):
+            return jsonify(error="The Excel file must include shop_name and contact headers."), 400
+        excel.columns = headers
+        rows = excel.to_dict(orient="records")
+        row_offset = 2
+    else:
+        return jsonify(error="Only CSV and Excel (.xlsx) files are supported."), 400
 
     records = []
-    try:
-        for row_number, row in enumerate(reader, start=2):
-            shop_name = (row.get("shop_name") or "").strip()
-            contact = (row.get("contact") or "").strip()
-            if not shop_name and not contact:
-                continue
-            if not shop_name or not contact:
-                return jsonify(
-                    error=f"Row {row_number} must include both shop_name and contact."
-                ), 400
-            records.append({"shop_name": shop_name, "contact": contact})
-    except csv.Error:
-        return jsonify(error="The CSV could not be parsed."), 400
+    for row_number, row in enumerate(rows, start=row_offset):
+        shop_name = str(row.get("shop_name") or "").strip()
+        contact = str(row.get("contact") or "").strip()
+        contact2 = str(row.get("contact2") or "").strip()
+        if not shop_name and not contact:
+            continue
+        if not shop_name or not contact:
+            return jsonify(
+                error=f"Row {row_number} must include both shop_name and contact."
+            ), 400
+        records.append({
+            "shop_name": shop_name,
+            "contact": contact,
+            "contact2": contact2 or None,
+        })
 
     if not records:
-        return jsonify(error="The CSV contains no data rows."), 400
+        return jsonify(error="The file contains no data rows."), 400
 
     try:
         db.add_oldata(records)
         return jsonify(imported=len(records))
     except Exception:
-        app.logger.exception("Failed to import CSV data into oldata.")
-        return jsonify(error="Unable to save the CSV data."), 500
+        app.logger.exception("Failed to import file data into oldata.")
+        return jsonify(error="Unable to save the imported data."), 500
 
 
 @app.errorhandler(413)
 def request_entity_too_large(_error):
-    return jsonify(error="The CSV file must be 5 MB or smaller."), 413
+    return jsonify(error="The uploaded file must be 5 MB or smaller."), 413
 
 
 @app.route("/shops/export/excel")
 def export_shops_excel():
     try:
         shops_list = db.read_shops()
-        columns = ["name", "location", "contact", "region", "category"]
+        columns = ["name", "location", "contact", "contact2", "region", "category"]
         shops_df = pd.DataFrame(shops_list, columns=columns)
         for column in shops_df.columns:
             shops_df[column] = shops_df[column].map(prepare_excel_value)
@@ -228,7 +257,7 @@ def export_jobs_excel():
                 export_jobs = jobs_list
 
             columns = list(jobs_list[0]) if jobs_list else [
-                "region", "job_id", "title", "company", "contact", "city",
+                "region", "job_id", "title", "company", "contact", "contact2", "city",
                 "state", "type", "posted", "source", "apply_link",
             ]
             jobs_df = pd.DataFrame(export_jobs, columns=columns)
@@ -384,6 +413,7 @@ def fetch_and_store_jobs():
 
     for job in updated_df.to_dict(orient="records"):
         job.setdefault("contact", None)
+        job.setdefault("contact2", None)
         db.add_job(job)
 
     app.logger.info("Processed %d fetched jobs.", len(updated_df))

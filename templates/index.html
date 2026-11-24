@@ -48,9 +48,9 @@
         <div class="shops-toolbar">
           <p id="shopsStatus" class="shops-status" aria-live="polite"></p>
           <form id="oldataUploadForm" class="csv-upload-form">
-            <input id="oldataCsvFile" name="file" type="file" accept=".csv,text/csv" hidden>
-            <span class="csv-upload-hint">Required columns: shop_name, contact</span>
-            <button id="oldataUploadBtn" class="export-button" type="button">Upload CSV</button>
+            <input id="oldataCsvFile" name="file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <span class="csv-upload-hint">Required: shop_name, contact; optional: contact2</span>
+            <button id="oldataUploadBtn" class="export-button" type="button">Upload CSV / Excel</button>
           </form>
         </div>
         <div class="group">

@@ -53,7 +53,9 @@ function createCard(job) {
   const location = [job.city, job.state].filter(Boolean).join(", ") || "Location not specified";
   const link = safeUrl(job.apply_link);
   const contact = job.contact == null ? "" : String(job.contact).trim();
+  const contact2 = job.contact2 == null ? "" : String(job.contact2).trim();
   const contactLink = safePhoneUrl(contact);
+  const contact2Link = safePhoneUrl(contact2);
   const region = isKerala ? "Kerala" : "Across India";
 
   const card = document.createElement("article");
@@ -70,6 +72,7 @@ function createCard(job) {
       <div class="meta-row">${ICONS.briefcase}<span>${esc(formatType(job.type))}</span></div>
       <div class="meta-row">${ICONS.clock}<span>${esc(formatDate(job.posted))}</span></div>
       ${contact ? `<div class="meta-row">${ICONS.phone}<span>${contactLink ? `<a class="phone-link" href="${contactLink}">${esc(contact)}</a>` : esc(contact)}</span></div>` : ""}
+      ${contact2 ? `<div class="meta-row">${ICONS.phone}<span>${contact2Link ? `<a class="phone-link" href="${contact2Link}">${esc(contact2)}</a>` : esc(contact2)}</span></div>` : ""}
     </div>
     <div class="card-foot">
       ${link ? `<a class="apply" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Apply ${ICONS.link}</a>` : ""}
@@ -155,6 +158,8 @@ function fillShopGroup(gridId, countId, shops, regionLabel) {
 
   shops.forEach(shop => {
     const contactLink = safePhoneUrl(shop.contact);
+    const contact2 = shop.contact2 == null ? "" : String(shop.contact2).trim();
+    const contact2Link = safePhoneUrl(contact2);
     const card = document.createElement("article");
     card.className = "shop-card";
     card.innerHTML = `
@@ -165,6 +170,7 @@ function fillShopGroup(gridId, countId, shops, regionLabel) {
       <div class="meta">
         <div class="meta-row">${ICONS.pin}<span>${esc(shop.location) || "Location not available"}</span></div>
         <div class="meta-row">${ICONS.phone}<span>${contactLink ? `<a class="phone-link" href="${contactLink}">${esc(shop.contact)}</a>` : esc(shop.contact) || "Contact not available"}</span></div>
+        ${contact2 ? `<div class="meta-row">${ICONS.phone}<span>${contact2Link ? `<a class="phone-link" href="${contact2Link}">${esc(contact2)}</a>` : esc(contact2)}</span></div>` : ""}
         ${shop.category ? `<div class="meta-row">${ICONS.building}<span>${esc(shop.category)}</span></div>` : ""}
       </div>
     `;
@@ -237,25 +243,25 @@ function openOldataCsvPicker() {
 
 async function uploadOldataCsv() {
   if (!oldataCsvFile.files.length) {
-    shopsStatus.textContent = "Choose a CSV file to upload.";
+    shopsStatus.textContent = "Choose a CSV or Excel file to upload.";
     return;
   }
 
   const formData = new FormData(oldataUploadForm);
   oldataUploadBtn.disabled = true;
-  shopsStatus.textContent = "Uploading CSV...";
+  shopsStatus.textContent = "Uploading CSV or Excel...";
   try {
     const response = await fetch("/oldata/upload", {
       method: "POST",
       body: formData,
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not upload the CSV.");
+    if (!response.ok) throw new Error(data.error || "Could not upload the file.");
     shopsStatus.textContent =
       data.imported + (data.imported === 1 ? " row uploaded to oldata." : " rows uploaded to oldata.");
     oldataUploadForm.reset();
   } catch (err) {
-    shopsStatus.textContent = err.message || "Could not upload the CSV.";
+    shopsStatus.textContent = err.message || "Could not upload the file.";
   } finally {
     oldataUploadBtn.disabled = false;
   }
