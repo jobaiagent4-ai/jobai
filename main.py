@@ -128,9 +128,22 @@ def upload_oldata():
     if not records:
         return jsonify(error="The file contains no data rows."), 400
 
+    unique_records = []
+    seen_records = set()
+    for record in records:
+        key = (
+            record["shop_name"].strip().casefold(),
+            record["contact"].strip(),
+            (record.get("contact2") or "").strip(),
+        )
+        if key in seen_records:
+            continue
+        seen_records.add(key)
+        unique_records.append(record)
+
     try:
-        db.add_oldata(records)
-        return jsonify(imported=len(records))
+        db.add_oldata(unique_records)
+        return jsonify(imported=len(unique_records))
     except Exception:
         app.logger.exception("Failed to import file data into oldata.")
         return jsonify(error="Unable to save the imported data."), 500

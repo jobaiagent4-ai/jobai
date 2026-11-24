@@ -2,6 +2,7 @@ import os
 from difflib import SequenceMatcher
 
 import psycopg2
+from psycopg2.extras import execute_values
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -189,14 +190,19 @@ class Database:
         try:
             cur = conn.cursor()
             self._ensure_oldata_table(cur)
-            cur.executemany(
-                "INSERT INTO oldata (shop_name, contact, contact2) VALUES (%s, %s, %s)",
-                [
-                    (record["shop_name"], record["contact"], record.get("contact2"))
-                    for record in records
-                ],
-            )
-            conn.commit()
+            batch_size = 500
+            for start in range(0, len(records), batch_size):
+                batch = records[start:start + batch_size]
+                execute_values(
+                    cur,
+                    "INSERT INTO oldata (shop_name, contact, contact2) VALUES %s",
+                    [
+                        (record["shop_name"], record["contact"], record.get("contact2"))
+                        for record in batch
+                    ],
+                    page_size=batch_size,
+                )
+                conn.commit()
         except Exception:
             conn.rollback()
             raise
