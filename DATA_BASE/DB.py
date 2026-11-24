@@ -17,7 +17,25 @@ def _normalize_shop_name(value):
 
 
 def _normalize_contact(value):
-    return "".join(character for character in (value or "") if character.isdigit())
+    digits = "".join(character for character in (value or "") if character.isdigit())
+    if len(digits) > 10:
+        digits = digits.lstrip("0")
+        if digits.startswith("91") and len(digits) > 10:
+            digits = digits[2:]
+    return digits
+
+
+def _contacts_match(first_contacts, second_contacts):
+    for first_contact in first_contacts:
+        for second_contact in second_contacts:
+            if first_contact and second_contact:
+                shorter = min(len(first_contact), len(second_contact))
+                if shorter >= 10 and (
+                    first_contact.endswith(second_contact)
+                    or second_contact.endswith(first_contact)
+                ):
+                    return True
+    return False
 
 
 class Database:
@@ -148,7 +166,7 @@ class Database:
                     ).ratio() > 0.8
                     for old_name in old_names
                 )
-                contact_matches = bool(shop_contacts.intersection(old_contacts))
+                contact_matches = _contacts_match(shop_contacts, old_contacts)
                 if not name_matches and not contact_matches:
                     rows.append(shop)
 
