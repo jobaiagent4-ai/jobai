@@ -255,8 +255,20 @@ async function uploadOldataCsv() {
       method: "POST",
       body: formData,
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not upload the file.");
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new Error(
+        responseText.trim().startsWith("<")
+          ? `Upload failed (HTTP ${response.status}).`
+          : "The server returned an invalid upload response."
+      );
+    }
+    if (!response.ok) {
+      throw new Error(data.error || "Could not upload the file.");
+    }
     shopsStatus.textContent =
       data.imported + (data.imported === 1 ? " row uploaded to oldata." : " rows uploaded to oldata.");
     oldataUploadForm.reset();
