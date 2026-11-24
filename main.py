@@ -177,6 +177,93 @@ def export_shops_excel():
         return jsonify(error="Unable to export shops to Excel."), 500
 
 
+@app.route("/shops/export/pdf")
+def export_shops_pdf():
+    try:
+        shops_list = db.read_shops()
+        output = BytesIO()
+        document = SimpleDocTemplate(
+            output,
+            pagesize=letter,
+            rightMargin=0.55 * inch,
+            leftMargin=0.55 * inch,
+            topMargin=0.55 * inch,
+            bottomMargin=0.55 * inch,
+            title="Shop Details",
+        )
+        base_styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            "ShopExportTitle",
+            parent=base_styles["Title"],
+            alignment=TA_CENTER,
+            textColor=colors.HexColor("#39254e"),
+        )
+        value_style = ParagraphStyle(
+            "ShopExportValue",
+            parent=base_styles["BodyText"],
+            fontSize=8,
+            leading=10,
+            wordWrap="CJK",
+        )
+        label_style = ParagraphStyle(
+            "ShopExportLabel",
+            parent=value_style,
+            textColor=colors.HexColor("#39254e"),
+            fontName="Helvetica-Bold",
+        )
+        story = [
+            Paragraph("Shop Details", title_style),
+            Paragraph(
+                f"{len(shops_list)} "
+                + ("shop" if len(shops_list) == 1 else "shops"),
+                base_styles["Normal"],
+            ),
+            Spacer(1, 14),
+        ]
+
+        if not shops_list:
+            story.append(Paragraph("No shops available.", base_styles["Normal"]))
+        else:
+            for shop in shops_list:
+                name = escape(str(shop.get("name") or "Unnamed shop"))
+                rows = [[Paragraph("<b>Name</b>", label_style), Paragraph(name, value_style)]]
+                rows.extend(
+                    [
+                        Paragraph(escape(str(key)), label_style),
+                        Paragraph(
+                            escape("" if value is None else str(value)).replace("\n", "<br/>"),
+                            value_style,
+                        ),
+                    ]
+                    for key, value in shop.items()
+                    if key != "name"
+                )
+                table = Table(rows, colWidths=[1.05 * inch, 5.85 * inch], splitByRow=1)
+                table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#f2eaf7")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e7e7dc")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e7e7dc")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]))
+                story.extend([table, Spacer(1, 12)])
+
+        document.build(story)
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="shop_data.pdf",
+            mimetype="application/pdf",
+        )
+    except Exception:
+        app.logger.exception("Failed to export shops to PDF.")
+        return jsonify(error="Unable to export shops to PDF."), 500
+
+
 @app.route("/shops/fetch", methods=["POST"])
 def fetch_shops():
     if not os.getenv("APIFY_API_TOKEN"):

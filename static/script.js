@@ -14,7 +14,7 @@ const message = document.getElementById("message");
 const results = document.getElementById("results");
 const shopsView = document.getElementById("shopsView");
 const shopsStatus = document.getElementById("shopsStatus");
-const shopsExcelBtn = document.getElementById("shopsExcelBtn");
+const shopsExportActions = document.getElementById("shopsExportActions");
 const oldataUploadForm = document.getElementById("oldataUploadForm");
 const oldataCsvFile = document.getElementById("oldataCsvFile");
 const oldataUploadBtn = document.getElementById("oldataUploadBtn");
@@ -201,7 +201,7 @@ async function loadShops() {
   results.hidden = true;
   shopsView.hidden = false;
   fetchShopsBtn.hidden = true;
-  shopsExcelBtn.hidden = true;
+  shopsExportActions.hidden = true;
   shopsStatus.textContent = "Loading saved shops...";
 
   try {
@@ -212,7 +212,7 @@ async function loadShops() {
     fillShops(data);
     shopsStatus.textContent = data.length + (data.length === 1 ? " shop saved" : " shops saved");
     fetchShopsBtn.hidden = false;
-    shopsExcelBtn.hidden = false;
+    shopsExportActions.hidden = false;
   } catch (err) {
     if (activeView !== "shops") return;
     shopsStatus.textContent = "";
